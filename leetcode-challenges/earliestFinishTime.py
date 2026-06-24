@@ -69,9 +69,69 @@
 # 1 <= landStartTime[i], landDuration[i], waterStartTime[j], waterDuration[j] <= 105
 
 
-d = [4, 2, 8, 1, 7]
-def earliestFinishTime():
-    d.sort()
-    print(d)
-    
-earliestFinishTime()
+def earliestFinishTime(self, landStartTime, landDuration, waterStartTime, waterDuration):
+    land_trips = sorted(zip(landStartTime, landDuration))
+    water_trips = sorted(zip(waterStartTime, waterDuration))
+
+    n, m = len(land_trips), len(water_trips)
+
+        # prefix min duration: shortest land ride among first i+1 (sorted by open time)
+    land_prefix_min_dur = [0]*n
+    land_prefix_min_dur[0] = land_trips[0][1]
+    for i in range(1, n):
+        land_prefix_min_dur[i] = min(land_prefix_min_dur[i-1], land_trips[i][1])
+
+    water_prefix_min_dur = [0]*m
+    water_prefix_min_dur[0] = water_trips[0][1]
+    for i in range(1, m):
+        water_prefix_min_dur[i] = min(water_prefix_min_dur[i-1], water_trips[i][1])
+
+        # suffix min finish time: earliest finish among rides from i to end
+    land_suffix_min_finish = [0]*n
+    land_suffix_min_finish[n-1] = land_trips[n-1][0] + land_trips[n-1][1]
+    for i in range(n-2, -1, -1):
+        finish = land_trips[i][0] + land_trips[i][1]
+        land_suffix_min_finish[i] = min(land_suffix_min_finish[i+1], finish)
+
+    water_suffix_min_finish = [0]*m
+    water_suffix_min_finish[m-1] = water_trips[m-1][0] + water_trips[m-1][1]
+    for i in range(m-2, -1, -1):
+        finish = water_trips[i][0] + water_trips[i][1]
+        water_suffix_min_finish[i] = min(water_suffix_min_finish[i+1], finish)
+
+    result = float('inf')
+
+        # Case 1: land first, then water
+    for i in range(n):
+        land_finish = land_trips[i][0] + land_trips[i][1]
+            # binary search: first water ride with start >= land_finish
+        lo, hi = 0, m
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if water_trips[mid][0] >= land_finish:
+                hi = mid
+            else:
+                lo = mid + 1
+        if lo < m:
+             # water ride opens after we're free -> board immediately, use shortest from here on
+            result = min(result, land_finish + water_suffix_min_finish[lo] - water_trips[lo][0])
+        else:
+            # all water rides already open -> last one's prefix min duration applies
+            result = min(result, land_finish + water_prefix_min_dur[m-1])
+
+    # Case 2: water first, then land (symmetric)
+    for j in range(m):
+        water_finish = water_trips[j][0] + water_trips[j][1]
+        lo, hi = 0, n
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if land_trips[mid][0] >= water_finish:
+                hi = mid
+            else:
+                lo = mid + 1
+        if lo < n:
+            result = min(result, water_finish + land_suffix_min_finish[lo] - land_trips[lo][0])
+        else:
+            result = min(result, water_finish + land_prefix_min_dur[n-1])
+
+    return result
